@@ -8,7 +8,7 @@ import (
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 
 	"github.com/itochan/mugenfs/driveApi"
-	"github.com/itochan/mugenfs/fuse"
+	"github.com/itochan/mugenfs/fs"
 )
 
 func main() {
@@ -18,8 +18,8 @@ func main() {
 	}
 
 	driveApi.Init()
-	fuse.Init()
-	nfs := pathfs.NewPathNodeFs(&fuse.MugenFs{FileSystem: pathfs.NewDefaultFileSystem()}, nil)
+	fs.Init()
+	nfs := pathfs.NewPathNodeFs(&fs.MugenFs{FileSystem: pathfs.NewDefaultFileSystem()}, nil)
 	server, _, err := nodefs.MountRoot(flag.Arg(0), nfs.Root(), nil)
 	if err != nil {
 		log.Fatalf("Mount fail: %v\n", err)
