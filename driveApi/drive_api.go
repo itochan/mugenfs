@@ -116,7 +116,7 @@ func saveToken(file string, token *oauth2.Token) {
 
 func List(query string) (*drive.FileList, error) {
 	r, err := service.Files.List().Q(query).
-		Fields("nextPageToken, files(id, name)").Do()
+		Fields("nextPageToken, files(id, name, createdTime, viewedByMe, modifiedTime)").Do()
 
 	if len(r.Files) > 0 {
 		return r, err

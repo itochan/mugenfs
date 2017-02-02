@@ -2,6 +2,7 @@ package fs
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -10,7 +11,8 @@ import (
 	drive "google.golang.org/api/drive/v3"
 )
 
-const DirBucketName = "Dir"
+const dirBucketName = "Dir"
+const fileBucketName = "File"
 
 var database *bolt.DB
 
@@ -22,7 +24,10 @@ func Init() {
 		log.Fatal(err)
 	}
 	db.Update(func(tx *bolt.Tx) error {
-		if _, err := tx.CreateBucketIfNotExists([]byte(DirBucketName)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(dirBucketName)); err != nil {
+			return err
+		}
+		if _, err := tx.CreateBucketIfNotExists([]byte(fileBucketName)); err != nil {
 			return err
 		}
 		return nil
@@ -35,7 +40,7 @@ func getList() (*drive.FileList, error) {
 	req := make(chan []byte)
 	go func() {
 		err := database.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(DirBucketName))
+			b := tx.Bucket([]byte(dirBucketName))
 			v := b.Get([]byte("/"))
 			req <- v
 			return nil
@@ -51,7 +56,7 @@ func getList() (*drive.FileList, error) {
 	if len(value) == 0 {
 		r, err = driveApi.List("'root' in parents")
 		err := database.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(DirBucketName))
+			b := tx.Bucket([]byte(dirBucketName))
 			v, err := json.Marshal(r)
 			if err != nil {
 				return err
@@ -62,9 +67,45 @@ func getList() (*drive.FileList, error) {
 		if err != nil {
 			log.Panicln(err.Error())
 		}
+
+		for _, f := range r.Files {
+			database.Update(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte(fileBucketName))
+				v, err := json.Marshal(f)
+				if err != nil {
+					return err
+				}
+				err = b.Put([]byte("/"+f.Name), []byte(v))
+				return err
+			})
+			fmt.Printf("%s (%s)\n", f.Name, f.Id)
+		}
 	} else {
 		err = json.Unmarshal(value, &r)
 	}
 
+	return r, err
+}
+
+func getFileInfo(fname string) (*drive.File, error) {
+	req := make(chan []byte)
+	go func() {
+		err := database.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(fileBucketName))
+			v := b.Get([]byte("/" + fname))
+			req <- v
+			return nil
+		})
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+	}()
+	value := <-req
+
+	var r *drive.File
+	if len(value) == 0 {
+		return nil, nil
+	}
+	err := json.Unmarshal(value, &r)
 	return r, err
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"time"
+
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
@@ -14,13 +16,28 @@ type MugenFs struct {
 }
 
 func (me *MugenFs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	switch name {
-	case "":
+	if name == "" {
 		return &fuse.Attr{
 			Mode: fuse.S_IFDIR | 0755,
 		}, fuse.OK
-	default:
+	}
+	r, err := getFileInfo(name)
+	if err != nil {
 		return &fuse.Attr{
+			Mode: fuse.S_IFREG | 0644, Size: uint64(len(name)),
+		}, fuse.OK
+	}
+
+	if r != nil {
+		// layout := "yyyy-MM-DDTHH:mm:ssZ"
+		atime, _ := time.Parse(time.RFC3339Nano, r.ViewedByMeTime)
+		atimeUnix := atime.Unix()
+		mtime, _ := time.Parse(time.RFC3339Nano, r.ModifiedTime)
+		mtimeUnix := mtime.Unix()
+		ctime, _ := time.Parse(time.RFC3339Nano, r.CreatedTime)
+		ctimeUnix := ctime.Unix()
+		return &fuse.Attr{
+			Atime: uint64(atimeUnix), Mtime: uint64(mtimeUnix), Ctime: uint64(ctimeUnix),
 			Mode: fuse.S_IFREG | 0644, Size: uint64(len(name)),
 		}, fuse.OK
 	}
