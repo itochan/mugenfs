@@ -18,6 +18,7 @@ func main() {
 	}
 
 	driveApi.Init()
+	fuse.Init()
 	nfs := pathfs.NewPathNodeFs(&fuse.MugenFs{FileSystem: pathfs.NewDefaultFileSystem()}, nil)
 	server, _, err := nodefs.MountRoot(flag.Arg(0), nfs.Root(), nil)
 	if err != nil {
